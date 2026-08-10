@@ -7,3 +7,5 @@ numpy
 networkx
 joblib
 streamlit
+xgboost
+faker
