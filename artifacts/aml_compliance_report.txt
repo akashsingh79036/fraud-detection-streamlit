@@ -1,0 +1,35 @@
+**Compliance Audit Summary Report**
+
+**Date:** [Current Date]
+**Model Name:** Hybrid XGBoost-Isolation Forest AML Model
+**Audit Period:** [Audit Period]
+
+**Executive Summary:**
+
+The Hybrid XGBoost-Isolation Forest AML model has demonstrated impressive performance in detecting potential money laundering activities. With a total of 200,529 scored logs, the model flagged 300 alerts, all of which were true positives, indicating a 100% precision rate. However, the model missed 229 potential violations, resulting in a recall rate of 56.8%. While the model's deployment readiness is promising, further fine-tuning is necessary to improve its recall rate and reduce false negatives.
+
+**Technical Assessment:**
+
+The hybrid approach, combining supervised XGBoost and unsupervised Isolation Forest algorithms, has proven effective in mitigating false alarms. The XGBoost component leverages labeled data to learn patterns and relationships, enabling the model to identify high-risk transactions with high precision. Meanwhile, the Isolation Forest component identifies anomalies in the data, flagging unusual patterns that may not be captured by the supervised model. This combination allows the model to strike a balance between precision and recall, minimizing false positives while maintaining a reasonable recall rate.
+
+The absence of false positives (clean logs flagged) is a testament to the model's ability to distinguish between legitimate and suspicious transactions. However, the presence of 229 false negatives (missed violations) suggests that the model may be too conservative in its flagging criteria. Further analysis is required to determine the optimal threshold for flagging suspicious transactions.
+
+**Top 3 Highest-Risk Anomaly Profiles:**
+
+1. **TXN_200039**: This transaction, with an amount of 940978.07 and a txn_type of NEFT, has been assigned an anomaly score of 0.748522. The investigator should review this transaction to determine if it is a legitimate business transaction or a potential money laundering activity.
+2. **TXN_200000**: This transaction, with an amount of 969798.72 and a txn_type of NEFT, has been assigned an anomaly score of 0.748398. The investigator should scrutinize this transaction to identify any suspicious patterns or connections to known money laundering activities.
+3. **TXN_200037**: This transaction, with an amount of 940978.07 and a txn_type of NEFT, has been assigned an anomaly score of 0.748337. The investigator should examine this transaction to determine if it is a legitimate transaction or a potential attempt to launder money.
+
+**Next-Step Recommendations for Investigators:**
+
+1. Review the transaction details, including the sender, recipient, and transaction history, to identify any suspicious patterns or connections to known money laundering activities.
+2. Verify the legitimacy of the transactions by contacting the customers or reviewing additional documentation.
+3. Consider escalating the transactions to a higher-level review or reporting them to the relevant authorities if they are deemed suspicious.
+
+**Recommendations for Model Improvement:**
+
+1. Fine-tune the model's parameters to optimize the recall rate and reduce false negatives.
+2. Incorporate additional features or data sources to improve the model's ability to detect suspicious transactions.
+3. Continuously monitor the model's performance and update the training data to ensure the model remains effective in detecting emerging money laundering patterns.
+
+By addressing the model's limitations and implementing the recommended improvements, the Hybrid XGBoost-Isolation Forest AML model can become an even more effective tool in detecting and preventing money laundering activities.

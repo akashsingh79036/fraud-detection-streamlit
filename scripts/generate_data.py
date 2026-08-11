@@ -2,8 +2,35 @@ import pandas as pd
 from faker import Faker
 import random
 from datetime import datetime, timedelta
-from config import call_llm
 import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from config import call_llm
+
+print("Starting data generation process...")
+
+# 1. Ask the AI to create something for your project
+prompt_text = "Generate 3 rows of fake website traffic data in JSON format with fields: timestamp, ip_address, and status_code."
+ai_response = call_llm(prompt=prompt_text)
+
+# 2. Print or save the results
+print("\nGenerated Data from AI:")
+print(ai_response)
+
+# Make the AI act like a code cleaner
+clean_code = call_llm(
+    prompt="Fix syntax errors in this snippet: print 'hello'",
+    system_prompt="You are a strict Python code formatting assistant."
+)
+
+# Make the AI act like a data analyst
+analysis = call_llm(
+    prompt="We had a 500% spike in traffic at 2 AM. What could cause this?",
+    system_prompt="You are a security analyst looking for server attacks."
+)
+
 
 fake = Faker('en_IN') # Indian locale
 N_CUSTOMERS = 5000

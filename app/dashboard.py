@@ -43,34 +43,31 @@ def load_data(path: str) -> pd.DataFrame:
         return pd.DataFrame()
     return df
 
-@st.cache_resource(show_spinner="Running Detection Pipeline (Features → Rules → ML → Scoring)...")
+# app/dashboard.py (Inside run_pipeline function)
+
+@st.cache_resource(show_spinner="Running Detection Pipeline...")
 def run_pipeline(_df: pd.DataFrame) -> pd.DataFrame:
-    """Executes the full detection pipeline. Cached by dataframe reference."""
-    if _df.empty:
-        return _df
-    
+    if _df.empty: return _df
     df = _df.copy()
     
     try:
-        # 1. Behavioral Features (Rolling windows, velocity, dormancy)
         with st.spinner("Step 1/4: Computing Behavioral Features..."):
             df = compute_behavioral_features(df)
         
-        # 2. Rule Engine (Deterministic Typologies)
         with st.spinner("Step 2/4: Applying Rule Engine..."):
             df = apply_rule_engine(df)
         
-        # 3. ML Scoring (Hybrid XGBoost + IsolationForest)
         with st.spinner("Step 3/4: Scoring ML Models..."):
             artifact = load_or_train(df)
             df = score_model(df, artifact)
         
-        # 4. Final Risk Calculation (Hybrid Score + Buckets + Priority)
         with st.spinner("Step 4/4: Calculating Final Risk..."):
-            df = calculate_final_risk(df)
+            # 🔑 PASS ARTIFACT HERE
+            df = calculate_final_risk(df, artifact)
             
     except Exception as e:
         st.error(f"Pipeline Failed: {e}")
+        import traceback
         st.code(traceback.format_exc())
         return pd.DataFrame()
         

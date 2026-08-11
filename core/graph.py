@@ -44,3 +44,29 @@ def build_suspicious_subgraph(df: pd.DataFrame, top_n_cases: int = 50) -> Networ
     net.force_atlas_2based(gravity=-50, central_gravity=0.01, spring_length=100)
     net.show_buttons(filter_=['physics'])
     return net
+
+
+# Add this code block at the end of graph.py
+
+if __name__ == "__main__":
+    import os
+
+    print("--- Step 1: Loading Processed Transactions Dataset ---")
+    data_file = "data/processed_transactions.csv"
+    
+    if not os.path.exists(data_file):
+        print(f"❌ Error: {data_file} not found. Please run core/engine.py first!")
+    else:
+        df_processed = pd.read_csv(data_file)
+        print(f"Loaded {len(df_processed)} records.")
+        
+        print("\n--- Step 2: Generating Network Subgraph View ---")
+        # Run your interactive graph creator for the top 50 suspicious cases
+        interactive_network = build_suspicious_subgraph(df_processed, top_n_cases=50)
+        
+        # Save out the visualization map as a webpage file
+        output_html = "data/fraud_network.html"
+        interactive_network.write_html(output_html)
+        
+        print(f"✅ Success! Interactive network map generated at: {output_html}")
+        print("Double-click the HTML file in your folder tree to view it in your browser.")

@@ -1,6 +1,16 @@
 # core/engine.py
+import sys
+import os
 import pandas as pd
 import numpy as np
+
+# Load your dataset
+df = pd.read_csv("data/raw/transactions.csv")
+
+# Print dataset information
+print(df.info())
+print("\nFirst few rows:")
+print(df.head())
 
 THRESHOLD_REPORTING = 10_00_000
 DORMANT_DAYS = 90
@@ -100,3 +110,54 @@ def apply_rule_engine(df: pd.DataFrame) -> pd.DataFrame:
     df['rule_score'] = scores
     df['triggered_rules'] = rules_triggered
     return df
+
+# ==========================================
+# NEW IMPLEMENTATION: RUN PIPELINE AND CALL LLM
+# ==========================================
+# ==========================================
+# UNIFIED IMPLEMENTATION: RUN PIPELINE, SCORE, CALL LLM & SAVE CSV
+# ==========================================
+if __name__ == "__main__":
+    # 1. Setup path to import config tools
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from config import call_llm
+
+    print("\n--- Processing Behavioral Features ---")
+    processed_df = compute_behavioral_features(df)
+    
+    print("--- Applying Fraud Detection Rules ---")
+    scored_df = apply_rule_engine(processed_df)
+
+    # 2. Add Graph network score metrics
+    scored_df['risk_score'] = (scored_df['rule_score'] / 5.0).clip(0.0, 1.0)
+    scored_df.loc[scored_df['is_suspicious'] == 1, 'risk_score'] = 0.95
+    scored_df['investigation_priority'] = scored_df['risk_score'] * scored_df['amount']
+    print("Data processing and scoring engine complete!")
+
+    # 3. Save the processed data file for the graph and ML scripts
+    output_path = "data/processed_transactions.csv"
+    scored_df.to_csv(output_path, index=False)
+    print(f"📦 Successfully saved processed dataset to: {output_path}")
+
+    print("\n--- Extracting Fraud Samples for AI Analysis ---")
+    flagged_sample = scored_df[scored_df['is_suspicious'] == 1].head(3)
+    
+    if not flagged_sample.empty:
+        data_summary = flagged_sample[['txn_id', 'amount', 'txn_type', 'suspicious_pattern', 'rule_score']].to_string()
+        
+        prompt = f"""
+        Here is a sample of flagged transactions from our pipeline:
+        {data_summary}
+
+        Please analyze these transactions. For each row:
+        1. Explain the specific risk based on the 'suspicious_pattern' label.
+        2. Suggest a strategy to improve our current system rules for this pattern.
+        """
+
+        print("Contacting NVIDIA LLM for a data risk review...")
+        analysis_response = call_llm(prompt=prompt, system_prompt="You are an expert Anti-Money Laundering (AML) Compliance Officer.")
+        
+        print("\n=== AI Risk Analysis Output ===")
+        print(analysis_response)
+    else:
+        print("No suspicious rows found in sample to send to the LLM.")

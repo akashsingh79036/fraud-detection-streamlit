@@ -1,80 +1,102 @@
 # core/scoring.py
+import os
+import sys
 import pandas as pd
 import numpy as np
+import joblib
 
-def calculate_final_risk(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Combines Rule Score (0-N) and ML Anomaly Score (0-1) into Final Risk.
-    Creates: risk_score, risk_level, investigation_priority, rule_flag.
-    """
+def calculate_final_risk(df: pd.DataFrame, artifact: dict = None) -> pd.DataFrame:
     df = df.copy()
     
     # ---------------------------------------------------------
-    # 1. INPUT VALIDATION & DEFAULTS
+    # 1. DEFAULTS & CLEANING
     # ---------------------------------------------------------
-    if 'rule_score' not in df.columns:
-        df['rule_score'] = 0.0
-    if 'anomaly_score' not in df.columns:
-        df['anomaly_score'] = 0.0
+    for c in ['rule_score', 'anomaly_score']:
+        if c not in df.columns: df[c] = 0.0
+        df[c] = df[c].fillna(0).clip(lower=0)
     
-    # Fill NaNs just in case
-    df['rule_score'] = df['rule_score'].fillna(0).clip(lower=0)
-    df['anomaly_score'] = df['anomaly_score'].fillna(0).clip(0, 1)
+    # ---------------------------------------------------------
+    # 2. ROBUST NORMALIZATION (Rule Score)
+    # ---------------------------------------------------------
+    rule_cap = df['rule_score'].quantile(0.99)
+    if rule_cap < 1: rule_cap = 1.0 # Floor
+    
+    norm_rule = (df['rule_score'] / rule_cap).clip(0, 1)
+    norm_ml = df['anomaly_score'].clip(0, 1) 
 
     # ---------------------------------------------------------
-    # 2. NORMALIZATION
+    # 3. HYBRID CONTINUOUS SCORE (For Ranking/Prioritization)
     # ---------------------------------------------------------
-    # Rule Score: Min-Max (0-1). Max observed in data (dynamic) or fixed cap (e.g., 10).
-    # Using dynamic max with a floor of 1 to avoid div/0.
-    max_rule = df['rule_score'].max()
-    norm_rule = df['rule_score'] / max(max_rule, 1.0)
-    
-    # ML Score: Already 0-1 from model.py sigmoid
-    norm_ml = df['anomaly_score']
-
-    # ---------------------------------------------------------
-    # 3. HYBRID RISK SCORE (Weighted Sum)
-    # ---------------------------------------------------------
-    # Weights: Rules are deterministic/high precision -> 0.6. ML catches novel -> 0.4.
     df['risk_score'] = (0.6 * norm_rule) + (0.4 * norm_ml)
-    df['risk_score'] = df['risk_score'].clip(0, 1)
 
     # ---------------------------------------------------------
-    # 4. RISK BUCKETS (Categorical)
+    # 4. DISCRETE RISK LEVELS (DECOUPLED LOGIC)
     # ---------------------------------------------------------
-    bins = [0, 0.30, 0.65, 1.0]
-    labels = ['LOW', 'MEDIUM', 'HIGH']
-    # include_lowest=True ensures 0.0 maps to LOW
-    df['risk_level'] = pd.cut(df['risk_score'], bins=bins, labels=labels, include_lowest=True)
+    ml_thresh = artifact.get('threshold', 0.5) if artifact else 0.5
     
-    # Explicit Rule Flag for Dashboard KPI (Any rule hit)
-    df['rule_flag'] = (df['rule_score'] > 0).astype(int)
+    rule_hit = df['rule_score'] > 0
+    ml_hit = df['anomaly_score'] >= ml_thresh
+    
+    conditions = [
+        rule_hit | ml_hit,                    
+        (df['risk_score'] > 0.3) & ~(rule_hit | ml_hit) 
+    ]
+    choices = ['HIGH', 'MEDIUM']
+    df['risk_level'] = np.select(conditions, choices, default='LOW')
+    
+    df['risk_level'] = pd.Categorical(df['risk_level'], categories=['LOW', 'MEDIUM', 'HIGH'], ordered=True)
 
     # ---------------------------------------------------------
-    # 5. INVESTIGATION PRIORITY (Sorting Key)
+    # 5. KPI FLAGS
     # ---------------------------------------------------------
-    # Logic: Priority = Risk_Level_Weight * (1 + Rule_Severity)
-    # Risk_Level_Weight: HIGH=3, MEDIUM=2, LOW=1
-    # Rule_Severity: capped rule_score (max 3 points bonus)
-    
-    # SAFE MAPPING: Categorical -> String -> Map -> FillNA -> Float
-    # This avoids: TypeError: Cannot multiply Categorical by float
-    risk_priority_map = {'HIGH': 3.0, 'MEDIUM': 2.0, 'LOW': 1.0}
-    
-    mapped_priority = (
-        df['risk_level']
-        .astype(str)           # Convert Categorical to String
-        .map(risk_priority_map) # Map to numeric weights
-        .fillna(1.0)           # Fallback for any unexpected labels
-        .astype(float)         # Ensure float type for multiplication
-    )
-    
-    # Rule contribution (cap at 3 so rules don't drown risk level)
-    rule_contrib = df['rule_score'].clip(0, 3)
-    
-    df['investigation_priority'] = mapped_priority * (1 + rule_contrib)
-    
+    df['rule_flag'] = rule_hit.astype(int)
+    df['ml_flag'] = ml_hit.astype(int) 
+
     # ---------------------------------------------------------
-    # 6. FINAL SORT
+    # 6. INVESTIGATION PRIORITY (Sorting)
     # ---------------------------------------------------------
+    risk_weight = df['risk_level'].map({'HIGH': 3.0, 'MEDIUM': 2.0, 'LOW': 1.0}).astype(float)
+    rule_bonus = 1 + df['rule_score'].clip(0, 3) 
+    ml_bonus = 1 + norm_ml 
+    
+    df['investigation_priority'] = risk_weight * rule_bonus * ml_bonus
+
     return df.sort_values('investigation_priority', ascending=False).reset_index(drop=True)
+
+
+# ======================================================
+# EXECUTION BLOCK: RUN LIVE OPERATIONAL RISK RANKING
+# ======================================================
+if __name__ == "__main__":
+    print("\n--- Pipeline Initialization ---")
+    input_data_path = "data/ml_final_scored_transactions.csv"
+    model_path = "artifacts/aml_hybrid_pipeline.joblib"
+    
+    # 1. Ensure the scored transactions exist
+    if not os.path.exists(input_data_path):
+        print(f"❌ Error: {input_data_path} not found. Please run core/model.py first!")
+        sys.exit()
+        
+    df_scored = pd.read_csv(input_data_path)
+    print(f"Loaded {len(df_scored)} pre-scored transaction records.")
+    
+    # 2. Load the trained model artifact to get your calibrated threshold
+    trained_artifact = None
+    if os.path.exists(model_path):
+        print(f"♻️ Loading model configurations from: {model_path}")
+        trained_artifact = joblib.load(model_path)
+    else:
+        print("⚠️ Warning: Model artifact not found. Using default threshold of 0.5.")
+        
+    print("\n--- Calculating Final Operational Risk Matrix ---")
+    # 3. Apply your robust risk calculation matrix
+    final_operational_df = calculate_final_risk(df_scored, trained_artifact)
+    
+    # 4. Print pipeline risk summary metrics
+    print("\n=== Investigation Alert Dashboard Metrics ===")
+    print(final_operational_df['risk_level'].value_counts().to_string())
+    
+    # 5. Save out the operational database file
+    output_csv_path = "data/operational_alerts_final.csv"
+    final_operational_df.to_csv(output_csv_path, index=False)
+    print(f"\n📦 Success! Saved finalized operational audit sheet to: {output_csv_path}")

@@ -1,0 +1,373 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script>function neighbourhoodHighlight(params) {
+  // console.log("in nieghbourhoodhighlight");
+  allNodes = nodes.get({ returnType: "Object" });
+  // originalNodes = JSON.parse(JSON.stringify(allNodes));
+  // if something is selected:
+  if (params.nodes.length > 0) {
+    highlightActive = true;
+    var i, j;
+    var selectedNode = params.nodes[0];
+    var degrees = 2;
+
+    // mark all nodes as hard to read.
+    for (let nodeId in allNodes) {
+      // nodeColors[nodeId] = allNodes[nodeId].color;
+      allNodes[nodeId].color = "rgba(200,200,200,0.5)";
+      if (allNodes[nodeId].hiddenLabel === undefined) {
+        allNodes[nodeId].hiddenLabel = allNodes[nodeId].label;
+        allNodes[nodeId].label = undefined;
+      }
+    }
+    var connectedNodes = network.getConnectedNodes(selectedNode);
+    var allConnectedNodes = [];
+
+    // get the second degree nodes
+    for (i = 1; i < degrees; i++) {
+      for (j = 0; j < connectedNodes.length; j++) {
+        allConnectedNodes = allConnectedNodes.concat(
+          network.getConnectedNodes(connectedNodes[j])
+        );
+      }
+    }
+
+    // all second degree nodes get a different color and their label back
+    for (i = 0; i < allConnectedNodes.length; i++) {
+      // allNodes[allConnectedNodes[i]].color = "pink";
+      allNodes[allConnectedNodes[i]].color = "rgba(150,150,150,0.75)";
+      if (allNodes[allConnectedNodes[i]].hiddenLabel !== undefined) {
+        allNodes[allConnectedNodes[i]].label =
+          allNodes[allConnectedNodes[i]].hiddenLabel;
+        allNodes[allConnectedNodes[i]].hiddenLabel = undefined;
+      }
+    }
+
+    // all first degree nodes get their own color and their label back
+    for (i = 0; i < connectedNodes.length; i++) {
+      // allNodes[connectedNodes[i]].color = undefined;
+      allNodes[connectedNodes[i]].color = nodeColors[connectedNodes[i]];
+      if (allNodes[connectedNodes[i]].hiddenLabel !== undefined) {
+        allNodes[connectedNodes[i]].label =
+          allNodes[connectedNodes[i]].hiddenLabel;
+        allNodes[connectedNodes[i]].hiddenLabel = undefined;
+      }
+    }
+
+    // the main node gets its own color and its label back.
+    // allNodes[selectedNode].color = undefined;
+    allNodes[selectedNode].color = nodeColors[selectedNode];
+    if (allNodes[selectedNode].hiddenLabel !== undefined) {
+      allNodes[selectedNode].label = allNodes[selectedNode].hiddenLabel;
+      allNodes[selectedNode].hiddenLabel = undefined;
+    }
+  } else if (highlightActive === true) {
+    // console.log("highlightActive was true");
+    // reset all nodes
+    for (let nodeId in allNodes) {
+      // allNodes[nodeId].color = "purple";
+      allNodes[nodeId].color = nodeColors[nodeId];
+      // delete allNodes[nodeId].color;
+      if (allNodes[nodeId].hiddenLabel !== undefined) {
+        allNodes[nodeId].label = allNodes[nodeId].hiddenLabel;
+        allNodes[nodeId].hiddenLabel = undefined;
+      }
+    }
+    highlightActive = false;
+  }
+
+  // transform the object into an array
+  var updateArray = [];
+  if (params.nodes.length > 0) {
+    for (let nodeId in allNodes) {
+      if (allNodes.hasOwnProperty(nodeId)) {
+        // console.log(allNodes[nodeId]);
+        updateArray.push(allNodes[nodeId]);
+      }
+    }
+    nodes.update(updateArray);
+  } else {
+    // console.log("Nothing was selected");
+    for (let nodeId in allNodes) {
+      if (allNodes.hasOwnProperty(nodeId)) {
+        // console.log(allNodes[nodeId]);
+        // allNodes[nodeId].color = {};
+        updateArray.push(allNodes[nodeId]);
+      }
+    }
+    nodes.update(updateArray);
+  }
+}
+
+function filterHighlight(params) {
+  allNodes = nodes.get({ returnType: "Object" });
+  // if something is selected:
+  if (params.nodes.length > 0) {
+    filterActive = true;
+    let selectedNodes = params.nodes;
+
+    // hiding all nodes and saving the label
+    for (let nodeId in allNodes) {
+      allNodes[nodeId].hidden = true;
+      if (allNodes[nodeId].savedLabel === undefined) {
+        allNodes[nodeId].savedLabel = allNodes[nodeId].label;
+        allNodes[nodeId].label = undefined;
+      }
+    }
+
+    for (let i=0; i < selectedNodes.length; i++) {
+      allNodes[selectedNodes[i]].hidden = false;
+      if (allNodes[selectedNodes[i]].savedLabel !== undefined) {
+        allNodes[selectedNodes[i]].label = allNodes[selectedNodes[i]].savedLabel;
+        allNodes[selectedNodes[i]].savedLabel = undefined;
+      }
+    }
+
+  } else if (filterActive === true) {
+    // reset all nodes
+    for (let nodeId in allNodes) {
+      allNodes[nodeId].hidden = false;
+      if (allNodes[nodeId].savedLabel !== undefined) {
+        allNodes[nodeId].label = allNodes[nodeId].savedLabel;
+        allNodes[nodeId].savedLabel = undefined;
+      }
+    }
+    filterActive = false;
+  }
+
+  // transform the object into an array
+  var updateArray = [];
+  if (params.nodes.length > 0) {
+    for (let nodeId in allNodes) {
+      if (allNodes.hasOwnProperty(nodeId)) {
+        updateArray.push(allNodes[nodeId]);
+      }
+    }
+    nodes.update(updateArray);
+  } else {
+    for (let nodeId in allNodes) {
+      if (allNodes.hasOwnProperty(nodeId)) {
+        updateArray.push(allNodes[nodeId]);
+      }
+    }
+    nodes.update(updateArray);
+  }
+}
+
+function selectNode(nodes) {
+  network.selectNodes(nodes);
+  neighbourhoodHighlight({ nodes: nodes });
+  return nodes;
+}
+
+function selectNodes(nodes) {
+  network.selectNodes(nodes);
+  filterHighlight({nodes: nodes});
+  return nodes;
+}
+
+function highlightFilter(filter) {
+  let selectedNodes = []
+  let selectedProp = filter['property']
+  if (filter['item'] === 'node') {
+    let allNodes = nodes.get({ returnType: "Object" });
+    for (let nodeId in allNodes) {
+      if (allNodes[nodeId][selectedProp] && filter['value'].includes((allNodes[nodeId][selectedProp]).toString())) {
+        selectedNodes.push(nodeId)
+      }
+    }
+  }
+  else if (filter['item'] === 'edge'){
+    let allEdges = edges.get({returnType: 'object'});
+    // check if the selected property exists for selected edge and select the nodes connected to the edge
+    for (let edge in allEdges) {
+      if (allEdges[edge][selectedProp] && filter['value'].includes((allEdges[edge][selectedProp]).toString())) {
+        selectedNodes.push(allEdges[edge]['from'])
+        selectedNodes.push(allEdges[edge]['to'])
+      }
+    }
+  }
+  selectNodes(selectedNodes)
+}</script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+            
+            
+            
+            
+            
+
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 700px;
+                 background-color: #ffffff;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+
+             
+             #config {
+                 float: left;
+                 width: 400px;
+                 height: 600px;
+             }
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+        
+            <div id="config"></div>
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"color": "#ff4444", "id": "ACC_3631457488", "label": "ACC_3631457488", "shape": "dot", "size": 38, "title": "Account: ACC_3631457488\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_2257549662", "label": "ACC_2257549662", "shape": "dot", "size": 10, "title": "Account: ACC_2257549662\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_7062829600", "label": "ACC_7062829600", "shape": "dot", "size": 10, "title": "Account: ACC_7062829600\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_3578293017", "label": "ACC_3578293017", "shape": "dot", "size": 38, "title": "Account: ACC_3578293017\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_2208720752", "label": "ACC_2208720752", "shape": "dot", "size": 10, "title": "Account: ACC_2208720752\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_2223386648", "label": "ACC_2223386648", "shape": "dot", "size": 10, "title": "Account: ACC_2223386648\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_5306575154", "label": "ACC_5306575154", "shape": "dot", "size": 10, "title": "Account: ACC_5306575154\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_7418432992", "label": "ACC_7418432992", "shape": "dot", "size": 10, "title": "Account: ACC_7418432992\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_7016833453", "label": "ACC_7016833453", "shape": "dot", "size": 38, "title": "Account: ACC_7016833453\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_7473154023", "label": "ACC_7473154023", "shape": "dot", "size": 10, "title": "Account: ACC_7473154023\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_4992101545", "label": "ACC_4992101545", "shape": "dot", "size": 38, "title": "Account: ACC_4992101545\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_2959436780", "label": "ACC_2959436780", "shape": "dot", "size": 10, "title": "Account: ACC_2959436780\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_5731833682", "label": "ACC_5731833682", "shape": "dot", "size": 10, "title": "Account: ACC_5731833682\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_6854112616", "label": "ACC_6854112616", "shape": "dot", "size": 38, "title": "Account: ACC_6854112616\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_5915914505", "label": "ACC_5915914505", "shape": "dot", "size": 10, "title": "Account: ACC_5915914505\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_7298256473", "label": "ACC_7298256473", "shape": "dot", "size": 10, "title": "Account: ACC_7298256473\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_9488501429", "label": "ACC_9488501429", "shape": "dot", "size": 10, "title": "Account: ACC_9488501429\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_2977759222", "label": "ACC_2977759222", "shape": "dot", "size": 10, "title": "Account: ACC_2977759222\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_1774536804", "label": "ACC_1774536804", "shape": "dot", "size": 10, "title": "Account: ACC_1774536804\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_7980127141", "label": "ACC_7980127141", "shape": "dot", "size": 38, "title": "Account: ACC_7980127141\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_3252139144", "label": "ACC_3252139144", "shape": "dot", "size": 10, "title": "Account: ACC_3252139144\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_3573096167", "label": "ACC_3573096167", "shape": "dot", "size": 10, "title": "Account: ACC_3573096167\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_5564940565", "label": "ACC_5564940565", "shape": "dot", "size": 10, "title": "Account: ACC_5564940565\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_447135334", "label": "ACC_447135334", "shape": "dot", "size": 10, "title": "Account: ACC_447135334\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_4743394977", "label": "ACC_4743394977", "shape": "dot", "size": 38, "title": "Account: ACC_4743394977\\nMax Risk: 0.95"}, {"color": "#ff4444", "id": "ACC_4069822162", "label": "ACC_4069822162", "shape": "dot", "size": 38, "title": "Account: ACC_4069822162\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_3114668399", "label": "ACC_3114668399", "shape": "dot", "size": 10, "title": "Account: ACC_3114668399\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_4698694162", "label": "ACC_4698694162", "shape": "dot", "size": 10, "title": "Account: ACC_4698694162\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_6857144571", "label": "ACC_6857144571", "shape": "dot", "size": 10, "title": "Account: ACC_6857144571\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_7907553158", "label": "ACC_7907553158", "shape": "dot", "size": 10, "title": "Account: ACC_7907553158\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_1612439009", "label": "ACC_1612439009", "shape": "dot", "size": 38, "title": "Account: ACC_1612439009\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_6249258371", "label": "ACC_6249258371", "shape": "dot", "size": 10, "title": "Account: ACC_6249258371\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_8050683239", "label": "ACC_8050683239", "shape": "dot", "size": 10, "title": "Account: ACC_8050683239\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_2709310286", "label": "ACC_2709310286", "shape": "dot", "size": 38, "title": "Account: ACC_2709310286\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_1326324466", "label": "ACC_1326324466", "shape": "dot", "size": 10, "title": "Account: ACC_1326324466\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_3810267923", "label": "ACC_3810267923", "shape": "dot", "size": 10, "title": "Account: ACC_3810267923\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_9145788960", "label": "ACC_9145788960", "shape": "dot", "size": 10, "title": "Account: ACC_9145788960\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_7426363413", "label": "ACC_7426363413", "shape": "dot", "size": 38, "title": "Account: ACC_7426363413\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_2890075183", "label": "ACC_2890075183", "shape": "dot", "size": 10, "title": "Account: ACC_2890075183\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_491064575", "label": "ACC_491064575", "shape": "dot", "size": 38, "title": "Account: ACC_491064575\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_5272742248", "label": "ACC_5272742248", "shape": "dot", "size": 10, "title": "Account: ACC_5272742248\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_9474846597", "label": "ACC_9474846597", "shape": "dot", "size": 10, "title": "Account: ACC_9474846597\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_957694292", "label": "ACC_957694292", "shape": "dot", "size": 38, "title": "Account: ACC_957694292\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_1731164338", "label": "ACC_1731164338", "shape": "dot", "size": 10, "title": "Account: ACC_1731164338\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_7975420175", "label": "ACC_7975420175", "shape": "dot", "size": 10, "title": "Account: ACC_7975420175\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_3288205847", "label": "ACC_3288205847", "shape": "dot", "size": 38, "title": "Account: ACC_3288205847\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_2118131529", "label": "ACC_2118131529", "shape": "dot", "size": 10, "title": "Account: ACC_2118131529\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_9294937287", "label": "ACC_9294937287", "shape": "dot", "size": 38, "title": "Account: ACC_9294937287\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_3948913185", "label": "ACC_3948913185", "shape": "dot", "size": 10, "title": "Account: ACC_3948913185\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_6686175374", "label": "ACC_6686175374", "shape": "dot", "size": 10, "title": "Account: ACC_6686175374\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_6870312441", "label": "ACC_6870312441", "shape": "dot", "size": 10, "title": "Account: ACC_6870312441\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_7072015611", "label": "ACC_7072015611", "shape": "dot", "size": 10, "title": "Account: ACC_7072015611\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_8391769346", "label": "ACC_8391769346", "shape": "dot", "size": 10, "title": "Account: ACC_8391769346\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_915026870", "label": "ACC_915026870", "shape": "dot", "size": 38, "title": "Account: ACC_915026870\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_5047963497", "label": "ACC_5047963497", "shape": "dot", "size": 10, "title": "Account: ACC_5047963497\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_6383498261", "label": "ACC_6383498261", "shape": "dot", "size": 10, "title": "Account: ACC_6383498261\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_5857185419", "label": "ACC_5857185419", "shape": "dot", "size": 10, "title": "Account: ACC_5857185419\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_6777838094", "label": "ACC_6777838094", "shape": "dot", "size": 10, "title": "Account: ACC_6777838094\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_2963608790", "label": "ACC_2963608790", "shape": "dot", "size": 38, "title": "Account: ACC_2963608790\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_6470765898", "label": "ACC_6470765898", "shape": "dot", "size": 10, "title": "Account: ACC_6470765898\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_9508529435", "label": "ACC_9508529435", "shape": "dot", "size": 10, "title": "Account: ACC_9508529435\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_7869393465", "label": "ACC_7869393465", "shape": "dot", "size": 38, "title": "Account: ACC_7869393465\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_8336033411", "label": "ACC_8336033411", "shape": "dot", "size": 10, "title": "Account: ACC_8336033411\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_916542548", "label": "ACC_916542548", "shape": "dot", "size": 10, "title": "Account: ACC_916542548\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_8200023073", "label": "ACC_8200023073", "shape": "dot", "size": 38, "title": "Account: ACC_8200023073\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_3094674816", "label": "ACC_3094674816", "shape": "dot", "size": 10, "title": "Account: ACC_3094674816\\nMax Risk: 0.00"}, {"color": "#ff4444", "id": "ACC_370423635", "label": "ACC_370423635", "shape": "dot", "size": 38, "title": "Account: ACC_370423635\\nMax Risk: 0.95"}, {"color": "#44ff44", "id": "ACC_2114736867", "label": "ACC_2114736867", "shape": "dot", "size": 10, "title": "Account: ACC_2114736867\\nMax Risk: 0.00"}, {"color": "#44ff44", "id": "ACC_6185288819", "label": "ACC_6185288819", "shape": "dot", "size": 10, "title": "Account: ACC_6185288819\\nMax Risk: 0.00"}]);
+                  edges = new vis.DataSet([{"arrows": "to", "color": "#ff0000", "from": "ACC_3631457488", "title": "Txns: 1\\nTotal: 8,913,193\\nPatterns: dormant_wakeup", "to": "ACC_2257549662", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_3631457488", "title": "Txns: 1\\nTotal: 6,999,819\\nPatterns: dormant_wakeup", "to": "ACC_7062829600", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_3578293017", "title": "Txns: 1\\nTotal: 8,686,212\\nPatterns: dormant_wakeup", "to": "ACC_2208720752", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_3578293017", "title": "Txns: 1\\nTotal: 8,069,762\\nPatterns: dormant_wakeup", "to": "ACC_2223386648", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_3578293017", "title": "Txns: 1\\nTotal: 6,460,949\\nPatterns: dormant_wakeup", "to": "ACC_5306575154", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_3578293017", "title": "Txns: 1\\nTotal: 7,556,170\\nPatterns: dormant_wakeup", "to": "ACC_7418432992", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_7016833453", "title": "Txns: 1\\nTotal: 7,827,877\\nPatterns: dormant_wakeup", "to": "ACC_7473154023", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_4992101545", "title": "Txns: 1\\nTotal: 6,143,676\\nPatterns: dormant_wakeup", "to": "ACC_2959436780", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_4992101545", "title": "Txns: 1\\nTotal: 6,045,074\\nPatterns: dormant_wakeup", "to": "ACC_5731833682", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_6854112616", "title": "Txns: 1\\nTotal: 5,558,111\\nPatterns: dormant_wakeup", "to": "ACC_5915914505", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_6854112616", "title": "Txns: 1\\nTotal: 7,270,066\\nPatterns: dormant_wakeup", "to": "ACC_7298256473", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_6854112616", "title": "Txns: 1\\nTotal: 6,807,285\\nPatterns: dormant_wakeup", "to": "ACC_9488501429", "value": 1, "width": 1}, {"arrows": "to", "color": "#888888", "from": "ACC_2977759222", "title": "Txns: 1\\nTotal: 2,695\\nPatterns: ", "to": "ACC_1774536804", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_7980127141", "title": "Txns: 1\\nTotal: 6,853,659\\nPatterns: dormant_wakeup", "to": "ACC_3252139144", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_7980127141", "title": "Txns: 1\\nTotal: 5,854,223\\nPatterns: dormant_wakeup", "to": "ACC_3573096167", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_7980127141", "title": "Txns: 1\\nTotal: 7,497,192\\nPatterns: dormant_wakeup", "to": "ACC_5564940565", "value": 1, "width": 1}, {"arrows": "to", "color": "#888888", "from": "ACC_447135334", "title": "Txns: 1\\nTotal: 9,507\\nPatterns: ", "to": "ACC_4743394977", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_4069822162", "title": "Txns: 1\\nTotal: 9,081,389\\nPatterns: dormant_wakeup", "to": "ACC_3114668399", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_4069822162", "title": "Txns: 1\\nTotal: 8,378,432\\nPatterns: dormant_wakeup", "to": "ACC_4698694162", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_4069822162", "title": "Txns: 1\\nTotal: 7,998,225\\nPatterns: dormant_wakeup", "to": "ACC_6857144571", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_4069822162", "title": "Txns: 1\\nTotal: 9,860,095\\nPatterns: dormant_wakeup", "to": "ACC_7907553158", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_1612439009", "title": "Txns: 1\\nTotal: 8,359,774\\nPatterns: dormant_wakeup", "to": "ACC_6249258371", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_1612439009", "title": "Txns: 1\\nTotal: 9,654,182\\nPatterns: dormant_wakeup", "to": "ACC_8050683239", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_2709310286", "title": "Txns: 1\\nTotal: 5,839,756\\nPatterns: dormant_wakeup", "to": "ACC_1326324466", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_2709310286", "title": "Txns: 1\\nTotal: 8,524,430\\nPatterns: dormant_wakeup", "to": "ACC_1774536804", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_2709310286", "title": "Txns: 1\\nTotal: 9,203,250\\nPatterns: dormant_wakeup", "to": "ACC_2977759222", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_2709310286", "title": "Txns: 1\\nTotal: 9,732,148\\nPatterns: dormant_wakeup", "to": "ACC_3810267923", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_2709310286", "title": "Txns: 1\\nTotal: 7,337,184\\nPatterns: dormant_wakeup", "to": "ACC_9145788960", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_7426363413", "title": "Txns: 2\\nTotal: 8,091,104\\nPatterns: dormant_wakeup", "to": "ACC_2890075183", "value": 2, "width": 1}, {"arrows": "to", "color": "#888888", "from": "ACC_7426363413", "title": "Txns: 1\\nTotal: 2,766\\nPatterns: ", "to": "ACC_6249258371", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_491064575", "title": "Txns: 1\\nTotal: 2,815,630\\nPatterns: dormant_wakeup", "to": "ACC_3810267923", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_491064575", "title": "Txns: 1\\nTotal: 7,519,075\\nPatterns: dormant_wakeup", "to": "ACC_5272742248", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_491064575", "title": "Txns: 1\\nTotal: 5,812,008\\nPatterns: dormant_wakeup", "to": "ACC_9474846597", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_491064575", "title": "Txns: 1\\nTotal: 8,055,540\\nPatterns: dormant_wakeup", "to": "ACC_957694292", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_957694292", "title": "Txns: 1\\nTotal: 7,116,896\\nPatterns: dormant_wakeup", "to": "ACC_1731164338", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_957694292", "title": "Txns: 1\\nTotal: 9,746,614\\nPatterns: dormant_wakeup", "to": "ACC_7975420175", "value": 1, "width": 1}, {"arrows": "to", "color": "#888888", "from": "ACC_9145788960", "title": "Txns: 1\\nTotal: 2,015\\nPatterns: ", "to": "ACC_5564940565", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_3288205847", "title": "Txns: 1\\nTotal: 7,093,522\\nPatterns: dormant_wakeup", "to": "ACC_2118131529", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_3288205847", "title": "Txns: 1\\nTotal: 2,950,752\\nPatterns: dormant_wakeup", "to": "ACC_2977759222", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_9294937287", "title": "Txns: 1\\nTotal: 9,901,339\\nPatterns: dormant_wakeup", "to": "ACC_3948913185", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_9294937287", "title": "Txns: 1\\nTotal: 9,438,717\\nPatterns: dormant_wakeup", "to": "ACC_6686175374", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_9294937287", "title": "Txns: 1\\nTotal: 8,853,996\\nPatterns: dormant_wakeup", "to": "ACC_6870312441", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_9294937287", "title": "Txns: 1\\nTotal: 8,468,706\\nPatterns: dormant_wakeup", "to": "ACC_7072015611", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_9294937287", "title": "Txns: 1\\nTotal: 8,929,819\\nPatterns: dormant_wakeup", "to": "ACC_8391769346", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_915026870", "title": "Txns: 1\\nTotal: 7,012,225\\nPatterns: dormant_wakeup", "to": "ACC_5047963497", "value": 1, "width": 1}, {"arrows": "to", "color": "#888888", "from": "ACC_6383498261", "title": "Txns: 1\\nTotal: 727\\nPatterns: ", "to": "ACC_9294937287", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_4743394977", "title": "Txns: 1\\nTotal: 6,623,085\\nPatterns: dormant_wakeup", "to": "ACC_5857185419", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_4743394977", "title": "Txns: 1\\nTotal: 6,676,965\\nPatterns: dormant_wakeup", "to": "ACC_6777838094", "value": 1, "width": 1}, {"arrows": "to", "color": "#888888", "from": "ACC_4743394977", "title": "Txns: 1\\nTotal: 62,296\\nPatterns: ", "to": "ACC_7016833453", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_2963608790", "title": "Txns: 1\\nTotal: 5,390,070\\nPatterns: dormant_wakeup", "to": "ACC_6470765898", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_2963608790", "title": "Txns: 1\\nTotal: 8,368,780\\nPatterns: dormant_wakeup", "to": "ACC_9508529435", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_7869393465", "title": "Txns: 1\\nTotal: 5,211,130\\nPatterns: dormant_wakeup", "to": "ACC_8336033411", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_7869393465", "title": "Txns: 1\\nTotal: 5,482,643\\nPatterns: dormant_wakeup", "to": "ACC_916542548", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_8200023073", "title": "Txns: 1\\nTotal: 9,125,832\\nPatterns: dormant_wakeup", "to": "ACC_3094674816", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_8200023073", "title": "Txns: 1\\nTotal: 8,818,350\\nPatterns: dormant_wakeup", "to": "ACC_447135334", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_8200023073", "title": "Txns: 1\\nTotal: 8,022,800\\nPatterns: dormant_wakeup", "to": "ACC_6383498261", "value": 1, "width": 1}, {"arrows": "to", "color": "#888888", "from": "ACC_7062829600", "title": "Txns: 1\\nTotal: 621\\nPatterns: ", "to": "ACC_3288205847", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_370423635", "title": "Txns: 1\\nTotal: 9,457,030\\nPatterns: dormant_wakeup", "to": "ACC_2114736867", "value": 1, "width": 1}, {"arrows": "to", "color": "#ff0000", "from": "ACC_370423635", "title": "Txns: 1\\nTotal: 5,316,326\\nPatterns: dormant_wakeup", "to": "ACC_6185288819", "value": 1, "width": 1}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": true,
+        "filter": [
+            "physics"
+        ]
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "enabled": true,
+        "forceAtlas2Based": {
+            "avoidOverlap": 0,
+            "centralGravity": 0.01,
+            "damping": 0.4,
+            "gravitationalConstant": -50,
+            "springConstant": 0.08,
+            "springLength": 100
+        },
+        "solver": "forceAtlas2Based",
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+
+                  
+
+
+                  
+                  // if this network requires displaying the configure window,
+                  // put it in its div
+                  options.configure["container"] = document.getElementById("config");
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+
+                  
+
+
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>
