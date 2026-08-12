@@ -114,16 +114,22 @@ df = st.session_state.df
 # ---------------------------------------------------------
 # KPI ROW
 # ---------------------------------------------------------
+# app/dashboard.py (Lines 116-123)
+# ---------------------------------------------------------
+# KPI ROW (CRASH-PROOF)
+# ---------------------------------------------------------
 total_txns = len(df)
+
+# Safe metric calculations with column checking fallback loops
 susp_txns = int(df['is_suspicious'].sum()) if 'is_suspicious' in df.columns else 0
-high_risk = int((df['risk_level'] == 'HIGH').sum())
+high_risk = int((df['risk_level'] == 'HIGH').sum()) if 'risk_level' in df.columns else 0
 ml_flagged = int(df['ml_flag'].sum()) if 'ml_flag' in df.columns else 0
 rule_flagged = int(df['rule_flag'].sum()) if 'rule_flag' in df.columns else 0
 
 col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("Total Transactions", f"{total_txns:,}")
-col2.metric("Ground Truth Suspicious", f"{susp_txns:,}", help="Injected synthetic labels")
-col3.metric("🚨 HIGH Risk Cases", f"{high_risk:,}", delta=f"{high_risk/total_txns*100:.2f}%", delta_color="inverse")
+col2.metric("Ground Truth Suspicious", f"{susp_txns:,}")
+col3.metric("🚨 HIGH Risk Cases", f"{high_risk:,}")
 col4.metric("🤖 ML Anomalies Flagged", f"{ml_flagged:,}")
 col5.metric("📏 Rule Hits", f"{rule_flagged:,}")
 

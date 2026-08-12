@@ -158,9 +158,19 @@ def score_model(df: pd.DataFrame, artifact: dict) -> pd.DataFrame:
 
 def load_or_train(df: pd.DataFrame) -> dict:
     if MODEL_PATH.exists():
-        print(f"   ♻️ Loading: {MODEL_PATH}")
-        return joblib.load(MODEL_PATH)
-    print("   🆕 No model found. Training...")
+        print(f"   ♻️ Attempting to load model path: {MODEL_PATH}")
+        try:
+            return joblib.load(MODEL_PATH)
+        except Exception as e:
+            print(f"   ⚠️ Version mismatch or unpickling error detected: {e}")
+            print("   🛠️ Auto-deleting incompatible model file to force a clean local re-train...")
+            try:
+                os.remove(MODEL_PATH)
+            except Exception:
+                pass
+            # Fall through to train a new model instead of crashing
+            
+    print("   🆕 No compatible model found. Training a fresh hybrid pipeline...")
     return train_model(df)
 
 # ======================================================
