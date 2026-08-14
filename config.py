@@ -1,7 +1,12 @@
 import os
 from dotenv import load_dotenv
-from openai import OpenAI
-
+try:
+    from openai import OpenAI
+except ImportError:
+    print("⚠️ OpenAI package missing on host. Executing live hot-patch install...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "openai>=1.0.0"])
+    from openai import OpenAI
+    
 # 1. ALWAYS load the environment variables first!
 load_dotenv()
 
