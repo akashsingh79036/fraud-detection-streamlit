@@ -5,6 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from pathlib import Path
 import sys
+from openai import OpenAI
 import traceback
 
 # Add project root to path
