@@ -138,11 +138,12 @@ st.markdown("---")
 # ---------------------------------------------------------
 # TABS
 # ---------------------------------------------------------
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 Risk Overview", 
     "🔍 Case Investigation", 
     "🕸️ Network Graph", 
-    "📈 Model Performance"
+    "📈 Model Performance",
+    "🔮 Live Simulator"
 ])
 
 # ==========================================================
@@ -347,3 +348,130 @@ with tab4:
         fig_roc = px.area(x=fpr, y=tpr, title=f"ROC Curve (AUC={auc_roc:.3f})", labels=dict(x="False Positive Rate", y="True Positive Rate"))
         fig_roc.add_shape(type='line', line=dict(dash='dash'), x0=0, x1=1, y0=0, y1=1)
         st.plotly_chart(fig_roc, use_container_width=True)
+        
+# =========================================================
+# 🚀 TAB 5: LIVE PRODUCTION SIMULATOR (Paste at absolute bottom)
+# =========================================================
+with tab5:
+    st.subheader("Playground: Inject a Real-Time Production Transaction")
+    st.caption("Manually adjust telemetry parameters to see how the hybrid AI models respond instantly.")
+    
+    # Initialize separate state tracking variables for the live playground form
+    if 'sim_result' not in st.session_state:
+        st.session_state.sim_result = None
+        st.session_state.sim_data = None
+
+    # Organize input components cleanly using grid columns
+    form_col1, form_col2, form_col3 = st.columns(3)
+    
+    with form_col1:
+        sim_id = st.text_input("Transaction ID Reference", "TXN_HACKATHON_LIVE_01")
+        sim_sender = st.text_input("Sender Account", "ACC_LIVE_TEST_77")
+        sim_receiver = st.text_input("Receiver Account", "ACC_LIVE_TEST_88")
+        
+    with form_col2:
+        sim_amount = st.number_input("Transaction Amount ($)", min_value=1.0, max_value=5000000.0, value=945000.0, step=5000.0)
+        sim_type = st.selectbox("Payment Gateway Channel", ["NEFT", "RTGS", "IMPS", "CASH"])
+        
+    with form_col3:
+        sim_sender_br = st.text_input("Sender Branch Code", "BR_011")
+        sim_receiver_br = st.selectbox("Receiver Branch Code (Risk Region)", ["BR_022", "BR_056", "HR_04 (High Risk Location)"])
+
+    # Trigger action button
+    if st.button("🚀 Process Live Entry through ML Pipeline", type="primary", use_container_width=True):
+        with st.spinner("Executing real-time feature transformation and scoring mechanics..."):
+            import numpy as np
+            import time
+            
+            clean_rec_branch = "HR_04" if "HR_04" in sim_receiver_br else sim_receiver_br
+            
+            # 1. Assemble raw dictionary payload 
+            mock_payload = {
+                'txn_id': sim_id,
+                'timestamp': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'sender_acc': sim_sender,
+                'receiver_acc': sim_receiver,
+                'sender_cust_id': 'CUST_MOCK_LIVE',
+                'receiver_cust_id': 'CUST_MOCK_LIVE',
+                'amount': float(sim_amount),
+                'txn_type': sim_type,
+                'sender_branch': sim_sender_br,
+                'receiver_branch': clean_rec_branch,
+                'is_suspicious': 0,
+                'suspicious_pattern': np.nan
+            }
+            
+            # 2. Append directly to our current session history array to calculate 24h rolling velocity
+            extended_df = pd.concat([df, pd.DataFrame([mock_payload])], ignore_index=True)
+            
+            # 3. Process calculations on the fly using your core modules
+            from core.engine import compute_behavioral_features, apply_rule_engine
+            from core.model import load_or_train, score_model
+            
+            proc_df = compute_behavioral_features(extended_df)
+            rule_df = apply_rule_engine(proc_df)
+            
+            artifact = load_or_train(rule_df)
+            ml_scored_df = score_model(rule_df, artifact)
+            final_scored_df = calculate_final_risk(ml_scored_df, artifact)
+            
+            # 4. Save results to Session State to keep them active across button clicks
+            st.session_state.sim_result = final_scored_df[final_scored_df['txn_id'] == sim_id].iloc[0].to_dict()
+            st.session_state.sim_data = mock_payload
+            time.sleep(0.4)
+
+    # =========================================================
+    # RENDER ENGINE RESULTS (Decoupled from button click state)
+    # =========================================================
+    if st.session_state.sim_result is not None:
+        live_result = st.session_state.sim_result
+        
+        st.markdown("---")
+        st.markdown("### 📊 Pipeline Real-Time Risk Diagnostics")
+        
+        metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+        badge_color = "🔴" if live_result['risk_level'] == 'HIGH' else "🟡" if live_result['risk_level'] == 'MEDIUM' else "🟢"
+        
+        metric_col1.metric("Risk Status Level", f"{badge_color} {live_result['risk_level']}")
+        metric_col2.metric("AI Score Weight", f"{live_result['anomaly_score']:.4f}")
+        metric_col3.metric("Rule Score Metric", f"{live_result['rule_score']:.1f}")
+        metric_col4.metric("Priority Rank Index", f"{live_result['investigation_priority']:.2f}")
+        
+        if live_result['risk_level'] == 'HIGH':
+            st.error(f"⚠️ **Alert Triggered!** This transaction exhibits significant money laundering traits. Priority indexing score is **{live_result['investigation_priority']:.2f}**.")
+            
+            if sim_amount > 900000 and sim_amount < 1000000:
+                st.info("💡 **Pipeline Insight:** Caught a potential **Structuring (Smurfing)** threat. The amount is deliberately engineered just under standard regulatory reporting limits ($1,000,000).")
+            if "HR_" in str(live_result['receiver_branch']):
+                st.info("💡 **Pipeline Insight:** Flagged a **Geographic Anomaly**. Funds are tracking directly into high-risk settlement jurisdictions.")
+                
+            # =========================================================
+            # 🔮 INTEGRATED NVIDIA AI CO-PILOT (Safe State Layout)
+            # =========================================================
+            st.markdown("---")
+            st.subheader("🤖 NVIDIA AI Co-Pilot Investigator")
+            st.caption("Generate an instant compliance investigation report for this alert using Llama 3.1.")
+            
+            from config import call_llm
+            
+            if st.button("📝 Draft Official Case Memo", use_container_width=True):
+                with st.spinner("NVIDIA NIM generating regulatory brief..."):
+                    live_prompt = f"""
+                    Write a brief 2-paragraph banking compliance memo for this live alert:
+                    - Transaction ID: {live_result['txn_id']}
+                    - Amount: ${live_result['amount']:,.2f}
+                    - Channel: {live_result['txn_type']}
+                    - Sender/Receiver: {live_result['sender_acc']} -> {live_result['receiver_acc']}
+                    - AI Score: {live_result['anomaly_score']:.4f}
+                    - System Priority Index: {live_result['investigation_priority']:.2f}
+                    
+                    Include a concise Case Summary and immediate next-step actions for the auditing team.
+                    """
+                    try:
+                        ai_memo = call_llm(prompt=live_prompt, system_prompt="You are a Lead AML Forensic Investigator.")
+                        st.info("📊 **Drafted Case Report:**")
+                        st.write(ai_memo)
+                    except Exception as ai_err:
+                        st.error(f"Could not connect to NVIDIA NIM: {ai_err}")
+        else:
+            st.success("✅ **Clear Status:** No critical behavioral anomalies detected. Transaction fits expected baseline parameter tracks.")
